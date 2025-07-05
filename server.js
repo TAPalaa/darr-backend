@@ -4,25 +4,40 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
+// Middlewares
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// قاعدة البيانات (من متغيرات البيئة)
 const db = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'my_library',
-  port: 3307
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'my_library',
+  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3307,
+});
+
+// اختبار الاتصال بقاعدة البيانات
+db.getConnection((err, connection) => {
+  if (err) {
+    console.error('❌ فشل الاتصال بقاعدة البيانات:', err);
+  } else {
+    console.log('✅ تم الاتصال بقاعدة البيانات بنجاح');
+    connection.release();
+  }
 });
 
 // جلب كل الكتب
 app.get('/books', (req, res) => {
   const sql = 'SELECT * FROM books';
   db.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('❌ خطأ في جلب الكتب:', err);
+      return res.status(500).json({ error: err.message });
+    }
     res.json(results);
   });
 });
@@ -49,7 +64,10 @@ app.post('/books', (req, res) => {
   ];
 
   db.query(sql, values, (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('❌ خطأ في إضافة كتاب:', err);
+      return res.status(500).json({ error: err.message });
+    }
     res.json({ message: '✅ تم إضافة الكتاب', id: results.insertId });
   });
 });
@@ -68,7 +86,10 @@ app.put('/books/:id', (req, res) => {
   const sql = 'UPDATE books SET ? WHERE id = ?';
 
   db.query(sql, [updatedData, id], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('❌ خطأ في تحديث الكتاب:', err);
+      return res.status(500).json({ error: err.message });
+    }
     res.json({ message: '✅ تم تحديث الكتاب' });
   });
 });
@@ -77,7 +98,10 @@ app.put('/books/:id', (req, res) => {
 app.delete('/books/:id', (req, res) => {
   const sql = 'DELETE FROM books WHERE id = ?';
   db.query(sql, [req.params.id], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('❌ خطأ في حذف الكتاب:', err);
+      return res.status(500).json({ error: err.message });
+    }
     res.json({ message: '✅ تم حذف الكتاب' });
   });
 });
@@ -87,7 +111,10 @@ app.post('/msg', (req, res) => {
   const { name, age, notes } = req.body;
   const sql = 'INSERT INTO messages (name, age, notes) VALUES (?, ?, ?)';
   db.query(sql, [name, age, notes], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('❌ خطأ في إضافة الرسالة:', err);
+      return res.status(500).json({ error: err.message });
+    }
     res.json({ message: '✅ تم استلام الرسالة', id: result.insertId });
   });
 });
@@ -96,7 +123,10 @@ app.post('/msg', (req, res) => {
 app.get('/msg', (req, res) => {
   const sql = 'SELECT * FROM messages ORDER BY created_at DESC';
   db.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('❌ خطأ في جلب الرسائل:', err);
+      return res.status(500).json({ error: err.message });
+    }
     res.json(results);
   });
 });
@@ -105,9 +135,16 @@ app.get('/msg', (req, res) => {
 app.delete('/msg/:id', (req, res) => {
   const sql = 'DELETE FROM messages WHERE id = ?';
   db.query(sql, [req.params.id], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('❌ خطأ في حذف الرسالة:', err);
+      return res.status(500).json({ error: err.message });
+    }
     res.json({ message: '✅ تم حذف الرسالة' });
   });
+});
+
+app.get('/', (req, res) => {
+  res.send('📚 API is running!');
 });
 
 app.listen(PORT, () => {
