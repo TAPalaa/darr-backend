@@ -2,26 +2,25 @@ const express = require('express');
 const mysql = require('mysql2');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+require('dotenv').config(); // لتحميل متغيرات البيئة من .env عند التشغيل محليًا
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Middlewares
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// قاعدة البيانات (من متغيرات البيئة)
+// ✅ الاتصال بقاعدة البيانات على Railway باستخدام متغيرات البيئة
 const db = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: parseInt(process.env.DB_PORT || "3307"),
+  host: process.env.MYSQLHOST,
+  user: process.env.MYSQLUSER,
+  password: process.env.MYSQLPASSWORD,
+  database: process.env.MYSQLDATABASE,
+  port: parseInt(process.env.MYSQLPORT || '3306')
 });
 
-
-// اختبار الاتصال بقاعدة البيانات
+// ✅ اختبار الاتصال
 db.getConnection((err, connection) => {
   if (err) {
     console.error('❌ فشل الاتصال بقاعدة البيانات:', err);
@@ -31,22 +30,18 @@ db.getConnection((err, connection) => {
   }
 });
 
-// جلب كل الكتب
+// 📚 جلب كل الكتب
 app.get('/books', (req, res) => {
   const sql = 'SELECT * FROM books';
   db.query(sql, (err, results) => {
-    if (err) {
-      console.error('❌ خطأ في جلب الكتب:', err);
-      return res.status(500).json({ error: err.message });
-    }
+    if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
 });
 
-// إضافة كتاب
+// ➕ إضافة كتاب
 app.post('/books', (req, res) => {
   const data = req.body;
-
   const sql = `
     INSERT INTO books (
       book_name, author, editor, size, paper_type,
@@ -54,7 +49,6 @@ app.post('/books', (req, res) => {
       isbn, price, mostBayed, localPublish, bookImage
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
-
   const values = [
     data.book_name, data.author, data.editor, data.size, data.paper_type,
     data.printing, data.binding, data.pages, data.edition_year, data.category,
@@ -63,91 +57,65 @@ app.post('/books', (req, res) => {
     data.localPublish === 'true' || data.localPublish === true,
     data.bookImage
   ];
-
   db.query(sql, values, (err, results) => {
-    if (err) {
-      console.error('❌ خطأ في إضافة كتاب:', err);
-      return res.status(500).json({ error: err.message });
-    }
+    if (err) return res.status(500).json({ error: err.message });
     res.json({ message: '✅ تم إضافة الكتاب', id: results.insertId });
   });
 });
 
-// تحديث كتاب
+// ✏️ تحديث كتاب
 app.put('/books/:id', (req, res) => {
-  const data = req.body;
   const id = req.params.id;
-
-  const updatedData = {
-    ...data,
-    mostBayed: data.mostBayed === 'true' || data.mostBayed === true,
-    localPublish: data.localPublish === 'true' || data.localPublish === true,
+  const data = {
+    ...req.body,
+    mostBayed: req.body.mostBayed === 'true' || req.body.mostBayed === true,
+    localPublish: req.body.localPublish === 'true' || req.body.localPublish === true
   };
-
   const sql = 'UPDATE books SET ? WHERE id = ?';
-
-  db.query(sql, [updatedData, id], (err, result) => {
-    if (err) {
-      console.error('❌ خطأ في تحديث الكتاب:', err);
-      return res.status(500).json({ error: err.message });
-    }
+  db.query(sql, [data, id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
     res.json({ message: '✅ تم تحديث الكتاب' });
   });
 });
 
-// حذف كتاب
+// ❌ حذف كتاب
 app.delete('/books/:id', (req, res) => {
   const sql = 'DELETE FROM books WHERE id = ?';
   db.query(sql, [req.params.id], (err, result) => {
-    if (err) {
-      console.error('❌ خطأ في حذف الكتاب:', err);
-      return res.status(500).json({ error: err.message });
-    }
+    if (err) return res.status(500).json({ error: err.message });
     res.json({ message: '✅ تم حذف الكتاب' });
   });
 });
 
-// استقبال رسالة
+// 💬 استقبال رسالة
 app.post('/msg', (req, res) => {
   const { name, age, notes } = req.body;
   const sql = 'INSERT INTO messages (name, age, notes) VALUES (?, ?, ?)';
   db.query(sql, [name, age, notes], (err, result) => {
-    if (err) {
-      console.error('❌ خطأ في إضافة الرسالة:', err);
-      return res.status(500).json({ error: err.message });
-    }
+    if (err) return res.status(500).json({ error: err.message });
     res.json({ message: '✅ تم استلام الرسالة', id: result.insertId });
   });
 });
 
-// عرض الرسائل
+// 📬 عرض الرسائل
 app.get('/msg', (req, res) => {
   const sql = 'SELECT * FROM messages ORDER BY created_at DESC';
   db.query(sql, (err, results) => {
-    if (err) {
-      console.error('❌ خطأ في جلب الرسائل:', err);
-      return res.status(500).json({ error: err.message });
-    }
+    if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
 });
 
-// حذف رسالة
+// 🗑️ حذف رسالة
 app.delete('/msg/:id', (req, res) => {
   const sql = 'DELETE FROM messages WHERE id = ?';
   db.query(sql, [req.params.id], (err, result) => {
-    if (err) {
-      console.error('❌ خطأ في حذف الرسالة:', err);
-      return res.status(500).json({ error: err.message });
-    }
+    if (err) return res.status(500).json({ error: err.message });
     res.json({ message: '✅ تم حذف الرسالة' });
   });
 });
 
-app.get('/', (req, res) => {
-  res.send('📚 API is running!');
-});
-
+// 🚀 تشغيل السيرفر
 app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
