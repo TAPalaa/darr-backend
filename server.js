@@ -1,39 +1,26 @@
-require('dotenv').config();
+require('dotenv').config();  // استيراد dotenv في أول الكود
 
 const express = require('express');
 const mysql = require('mysql2');
-const bodyParser = require('body-parser');
 const cors = require('cors');
 
 const app = express();
 
-// اختر المنفذ من متغير البيئة أو 4000 كافتراضي
-const PORT = process.env.PORT || 4000;
+const port = process.env.PORT || 4000;
 
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
 
-// إنشاء اتصال بقاعدة البيانات باستخدام متغيرات البيئة
-const db = mysql.createPool({
-  host: process.env.MYSQLHOST,       // mysql.railway.internal
-  user: process.env.MYSQLUSER,       // root
-  password: process.env.MYSQLPASSWORD, // كلمة السر اللي زودتني بها
-  database: process.env.MYSQLDATABASE, // railway
-  port: process.env.MYSQLPORT || 3306, 
+// إعداد اتصال قاعدة البيانات
+const db = mysql.createConnection({
+  host: process.env.MYSQL_ADDON_HOST,      // bsbiymamam2ohrkpm26y-mysql.services.clever-cloud.com
+  user: process.env.MYSQL_ADDON_USER,      // uuizwttta6chl0ww
+  password: process.env.MYSQL_ADDON_PASSWORD,  // D4zuXX6BsgYU6TQsw8QU
+  database: process.env.MYSQL_ADDON_DB,    // bsbiymamam2ohrkpm26y
+  port: parseInt(process.env.MYSQL_ADDON_PORT) || 3306,
+  connectTimeout: 10000 // 10 ثواني مهلة اتصال
 });
 
-// اختبار اتصال قاعدة البيانات عند بدء التشغيل
-db.getConnection((err, connection) => {
-  if (err) {
-    console.error('❌ فشل الاتصال بقاعدة البيانات:', err);
-  } else {
-    console.log('✅ تم الاتصال بقاعدة البيانات بنجاح');
-    connection.release();
-  }
-});
-
-// --- مسارات API ---
 
 // جلب كل الكتب
 app.get('/books', (req, res) => {
@@ -50,6 +37,7 @@ app.get('/books', (req, res) => {
 // إضافة كتاب
 app.post('/books', (req, res) => {
   const data = req.body;
+
   const sql = `
     INSERT INTO books (
       book_name, author, editor, size, paper_type,
@@ -69,7 +57,7 @@ app.post('/books', (req, res) => {
 
   db.query(sql, values, (err, results) => {
     if (err) {
-      console.error('❌ خطأ في إضافة الكتاب:', err);
+      console.error('❌ خطأ في إضافة كتاب:', err);
       return res.status(500).json({ error: err.message });
     }
     res.json({ message: '✅ تم إضافة الكتاب', id: results.insertId });
@@ -89,7 +77,7 @@ app.put('/books/:id', (req, res) => {
 
   const sql = 'UPDATE books SET ? WHERE id = ?';
 
-  db.query(sql, [updatedData, id], (err) => {
+  db.query(sql, [updatedData, id], (err, result) => {
     if (err) {
       console.error('❌ خطأ في تحديث الكتاب:', err);
       return res.status(500).json({ error: err.message });
@@ -101,7 +89,7 @@ app.put('/books/:id', (req, res) => {
 // حذف كتاب
 app.delete('/books/:id', (req, res) => {
   const sql = 'DELETE FROM books WHERE id = ?';
-  db.query(sql, [req.params.id], (err) => {
+  db.query(sql, [req.params.id], (err, result) => {
     if (err) {
       console.error('❌ خطأ في حذف الكتاب:', err);
       return res.status(500).json({ error: err.message });
@@ -138,7 +126,7 @@ app.get('/msg', (req, res) => {
 // حذف رسالة
 app.delete('/msg/:id', (req, res) => {
   const sql = 'DELETE FROM messages WHERE id = ?';
-  db.query(sql, [req.params.id], (err) => {
+  db.query(sql, [req.params.id], (err, result) => {
     if (err) {
       console.error('❌ خطأ في حذف الرسالة:', err);
       return res.status(500).json({ error: err.message });
@@ -147,7 +135,11 @@ app.delete('/msg/:id', (req, res) => {
   });
 });
 
-// بدء تشغيل السيرفر
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+app.get('/', (req, res) => {
+  res.send('📚 API is running!');
+});
+
+
+app.listen(port, () => {
+  console.log(`🚀 Server running at http://localhost:${port}`);
 });
