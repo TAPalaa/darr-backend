@@ -2,7 +2,6 @@ const express = require('express');
 const mysql = require('mysql2');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-require('dotenv').config(); // لتحميل متغيرات البيئة من .env عند التشغيل محليًا
 
 const app = express();
 const PORT = process.env.PORT || 4000;
